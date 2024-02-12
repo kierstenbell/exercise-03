@@ -1,0 +1,120 @@
+---
+title: "EDA-challenge"
+output: html_document
+date: "2024-02-12"
+---
+```{r libraries, include=FALSE}
+## Load Libraries
+library(tidyverse)
+library(cowplot)
+```
+
+```{r}
+## Load the data set as a tabular data structure named d
+f <- "https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/data-wrangling.csv"
+d <- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+(names(d))
+
+## Create a new variables
+BSD <- d$Body_mass_male_mean / d$Body_mass_female_mean # BSD - body size dimorphism: ratio of average male to female body mass
+sex_ratio <- d$AdultFemale/ d$AdultMale  # ratio of the number of adult females to adult males in a typical group.
+DI <- d$DayLength_km/(sqrt(d$HomeRange_km2/pi)*2)
+d <- cbind(d, BSD, sex_ratio, DI) # Create a table with the new variables
+(names(d)) # double check to make sure it worked
+```
+
+## Q4. Day range length vs time spent moving
+```{r}
+## Creating plots
+p_overall <- ggplot(data = d, aes(x = DayLength_km, y = Move)) +
+  geom_point(color = "navy", position = "jitter")
+
+p_family <- ggplot(data = d, aes(x = DayLength_km, y = Move, color = Family)) +
+  geom_point()
+
+plot_grid(p_overall, p_family) #plot side by side
+
+p_overall_log <- ggplot(data = d, aes(x = log(DayLength_km), y = Move)) +
+  geom_point(color = "navy", position = "jitter")
+
+p_family_log <- ggplot(data = d, aes(x = log(DayLength_km), y = Move, color = Family)) +
+  geom_point()
+
+plot_grid(p_overall_log, p_family_log)
+```
+
+## Question 4: Do species that spend more time moving travel farther overall? How about within any particular primate family? Should you transform either of these variables?
+
+No, species that spend more time traveling do not travel farther overall. The is especially prevalent in the Cercopithecidae family -- They move a lot within the first bit of the day. There is also an example from the Atelidae family. It is helpful to transform the day length variable so you can better see the data spread. Otherwise, the data is on top of eachother.    
+
+
+## Q5. Day range length vs time group size
+```{r}
+p_overall <- ggplot(data = d, aes(x = DayLength_km, y = MeanGroupSize)) +
+  geom_point(na.rm = TRUE, color = "navy", position = "jitter") + 
+  geom_smooth(method = "lm", na.rm = TRUE)  # add a regression line
+p_overall
+
+p_family <- ggplot(data = d, aes(x = DayLength_km, y = MeanGroupSize, color = Family)) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method = "lm", na.rm = TRUE)  # add a regression line
+p_family
+
+plot_grid(p_overall, p_family)
+
+p_overall_log <- ggplot(data = d, aes(x = log(DayLength_km), y = MeanGroupSize)) +
+  geom_point(na.rm = TRUE, color = "navy", position = "jitter")
+p_overall_log
+
+p_family_log <- ggplot(data = d, aes(x = log(DayLength_km), y = MeanGroupSize, color = Family)) +
+  geom_point(na.rm = TRUE)
+p_family_log
+```
+
+## Question 5: Do species that live in larger groups travel farther overall? How about within any particular primate family? Should you transform either of these variables?
+
+Yes, species that live in larger groups travel farther overall. This is especially true for the Cercopithecidae and Hominidae families, although it appears that most families have a positive trend. The data are better visualized if you log transform the DayLength_km. 
+
+## Q6. Body size dimorphism vs canine size
+```{r}
+p_overall <- ggplot(data = d, aes(x = BSD, y = Canine_Dimorphism)) +
+  geom_point(na.rm = TRUE, color = "navy", position = "jitter")
+p_overall
+
+p_family <- ggplot(data = d, aes(x = BSD, y = Canine_Dimorphism, color = Family)) +
+  geom_point(na.rm = TRUE)
+p_family
+```
+
+Yes, there does seem to be a positive association between BSD and canine dimorphism. 
+
+## Q7. Dietary Strategy 
+```{r}
+## Creating a dieting strategy variable with frugivore, folivore, and omnivore
+d <- d %>%
+  mutate(d, diet_strategy = case_when(
+    Fruit >= 50 ~ "frugivore", 
+    Leaves >= 50 ~ "folivore",
+    Fruit < 50 & Leaves < 50 ~ "omnivore"))
+names(d)
+
+p <- ggplot(data = d, aes(x = diet_strategy, y = MeanGroupSize)) +
+  geom_boxplot(na.rm=TRUE) +
+  geom_point(color = "gray", position = "jitter")
+p
+```
+
+## Question 7: Do frugivores live in larger groups than folivores?
+Frugivores and folivores have similar groups sizes! Folivore group sizes are slightly larger.
+
+## Q8. In one line of code...
+
+```{r}
+d <- d%>%
+  mutate(d, Binomial = paste(Genus, Species)) %>%
+  select(Binomial, Family, Brain_Size_Species_Mean, Body_mass_male_mean) %>%
+  group_by(Family) %>%
+  summarise(mean_brain = mean(Brain_Size_Species_Mean, na.rm = TRUE), BM_mean = mean(Body_mass_male_mean, na.rm = TRUE)) %>%
+  arrange(mean_brain)
+print(d)
+```
